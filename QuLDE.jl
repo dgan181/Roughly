@@ -18,16 +18,16 @@ end
 # Define Stuff
 nbit = 1
 M,b,x = diffeqProblem(nbit)
-k = 7;
+k = 3;
 
 T = Int(round(log2(k+1)))
 t = 0.4
 
-inreg = normalize!(ArrayReg(x) ⊗ zero_state(T) ⊗ zero_state(1) +  ArrayReg(b) ⊗ zero_state(T) ⊗ ArrayReg(bit"1") )
 
-C(m) = norm(x)*(norm(det(M))*t)^(m)/factorial(m)
 
-D(n) = norm(b)*(norm(det(M))*t)^(n-1)*t/factorial(n)
+C(m) = norm(x)*(t)^(m)/factorial(m)
+
+D(n) = norm(b)*(t)^(n-1)*t/factorial(n)
 
 C_tilda = 0
 D_tilda = 0
@@ -59,16 +59,18 @@ VS2 = matblock(VS2)
 WS1 = matblock(WS1)
 WS2 = matblock(WS2)
 
+inreg = ArrayReg(x) ⊗ zero_state(T) ⊗ ( (C_tilda/N) * zero_state(1) )+  ArrayReg(b) ⊗ zero_state(T) ⊗ ((D_tilda/N) *ArrayReg(bit"1") )
+
 n = 1 + T + nbit
-
-circuitInit = chain(n, put(1=>V), control((-1,),(2:T+1...,)=>VS1),control((1,),(2:T+1...,)=>VS2))
-
+M = M
+circuitInit = chain(n, control((-1,),(2:T+1...,)=>VS1),control((1,),(2:T+1...,)=>VS2))
+  
 circuitIntermediate = chain(n)
 a = Array{Int64,1}(undef, T)
 U = Matrix{ComplexF64}(I, 1<<nbit,1<<nbit)
 for i in 0:k
     digits!(a,i,base = 2)
-    G = matblock(U)
+    G = matblock(U) 
     push!(circuitIntermediate,control(n, (-1*collect(2:T+1).*((-1*ones(Int, T)).^a)...,), (T+2:n...,)=>G))
     U = M*U
 end
@@ -77,7 +79,7 @@ circuitFinal = chain(n, control((-1,),(2:T+1...,)=>WS1),control((1,),(2:T+1...,)
 
 res = apply!(inreg,chain(circuitInit,circuitIntermediate,circuitFinal)) |> focus!(1:T+1...,) |> select!(0) |> state
 
-out = (N^2)*(vec(res))*sqrt(2)
+out = (N^2)*(vec(res))
 
 f(u,p,t) = M*u + b;
 tspan = (0.0,0.4)
@@ -85,4 +87,4 @@ prob = ODEProblem(f, x, tspan)
 sol = solve(prob, Tsit5(), dt = 0.1, adaptive = :false)
 s = vcat(sol.u...)
 
-@test isapprox.(s[end-1:end], out, atol = 0.5) |> all
+@test isapprox.(s[end-1:end], out, atol = 0.05) |> all
