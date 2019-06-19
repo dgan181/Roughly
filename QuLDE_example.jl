@@ -23,7 +23,7 @@ end
 f(x,y) = [-2*y^2*x, 3*x^(1.5) - 0.1*y];
 u0 = [0.2,0.1]
 Δu = [1e-6,1e-6] 
-h = 0.01
+h = 0.1
 k = 3
 tspan = (0.0,0.8 - h)
 length = round(Int,(tspan[2] - tspan[1])/h) + 1
